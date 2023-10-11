@@ -36,14 +36,14 @@ export class JsonLDReader {
   }
 
   /**
-   * parse JSON-LD value. this method uses jsonld library's expand method. but, if expanded value is single value of array, returns JsonLDReader has first object of array.
+   * parse JSON-LD value. this method uses jsonld library's expand method.
    *
    * @param value JSON-LD object or array of JSON-LD objects
    * @param options jsonld library's Options.Expand. see https://github.com/digitalbazaar/jsonld.js#custom-document-loader
    */
   static async parse (value: object | object[], options?: Options.Expand): Promise<JsonLDReader> {
     const data = await expand(value as JsonLdDocument, options)
-    return JsonLDReader.of(data.length === 1 ? data[0] : data)
+    return JsonLDReader.of(data)
   }
 
   /**
@@ -56,13 +56,13 @@ export class JsonLDReader {
   }
 
   /**
-   * @param key key or index of array
+   * @param key key or index of array. if given key is `outbox` and has `https://www.w3.org/ns/activitystreams#outbox`, returns value of `https://www.w3.org/ns/activitystreams#outbox`.
    * @returns JsonLDReader instance. if key is not found, returns `Nothing` instance.
    */
   public read (key: string | number): JsonLDReader
   /**
    * @param namespace if use `setNamespace` method to set namespace, you can use namespace as first argument. if not, insert full url as first argument. e.g. `https://www.w3.org/ns/activitystreams`
-   * @param key insert key. e.g. `url`
+   * @param key insert key. e.g. `url`. if has value is array and length is 1, it reads first element of array automatically.
    * @returns JsonLDReader instance. if key is not found, returns `Nothing` instance.
    */
   public read (namespace: string, key: string): JsonLDReader
@@ -224,18 +224,59 @@ export class JsonLDReader {
   }
 
   private readObject (key: string): JsonLDReader {
-    if (typeof this.value !== 'object') {
+    if (!this.valueIsObject()) {
       return new Nothing(new Error('Not an object'))
     }
 
-    const value = (this.value as any)?.length === 1
-      ? (this.value as any[])[0]
-      : this.value
+    const scope = this.scope() as Record<string, any>
+    const value = scope[key]
 
-    const scope = (value as Record<string, any>)[key]
-    return scope === undefined
+    if (value !== undefined) {
+      if (key === '@type') {
+        return JsonLDReader.of(this.extractType(value), this.namespace)
+      }
+      return JsonLDReader.of(value, this.namespace)
+    }
+
+    const extractedKey = Object.keys(scope).find((k) => k.split('#')[1] === key)
+
+    return extractedKey === undefined
       ? new Nothing(new Error(`Not found key: ${key}`))
-      : JsonLDReader.of(scope, this.namespace)
+      : JsonLDReader.of(scope[extractedKey], this.namespace)
+  }
+
+  private extractType (value: string): string {
+    if (Array.isArray(value)) {
+      return this.extractType(value[0])
+    }
+
+    const hashSplit = value.split('#')
+    if (hashSplit.length === 2) {
+      return hashSplit[1]
+    }
+
+    const slashSplit = value.split('/')
+    return slashSplit[slashSplit.length - 1]
+  }
+
+  private valueIsObject (): boolean {
+    if (Array.isArray(this.value) && this.length === 1) {
+      return true
+    }
+
+    if (Array.isArray(this.value)) {
+      return false
+    }
+
+    return typeof this.value === 'object'
+  }
+
+  private scope (): unknown {
+    if (Array.isArray(this.value) && this.length === 1) {
+      return this.value[0]
+    }
+
+    return this.value
   }
 
   private getValue (): unknown {

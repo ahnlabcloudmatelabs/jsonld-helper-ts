@@ -97,8 +97,23 @@ const imageURL = jsonld
   .stringOrThrow()
 // https://files.mastodon.social/accounts/headers/109/408/471/076/954/889/original/f4158a0d06a05763.png
 
+const imageURL = jsonld
+  .read('image')
+  .read('url')
+  .stringOrThrow()
+// https://files.mastodon.social/accounts/headers/109/408/471/076/954/889/original/f4158a0d06a05763.png
+
 const id = jsonld.read('@id').get()
 // https://mastodon.social/users/juunini
+
+const id = jsonld.read('id').get()
+// https://mastodon.social/users/juunini
+
+const type = jsonld.read('@type').get()
+// Person
+
+const type = jsonld.read('type').get()
+// Person
 
 const manuallyApprovesFollowers = jsonld
   .setNamespace({ as: 'https://www.w3.org/ns/activitystreams' })

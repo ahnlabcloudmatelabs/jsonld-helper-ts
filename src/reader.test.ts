@@ -20,7 +20,7 @@ describe('read', () => {
   describe('when given key is number, but value is not array', () => {
     it('should changes type Nothing', async () => {
       const jsonld = await JsonLDReader.parse(givenJSONLD)
-      expect(() => jsonld.read(0).getOrThrow()).toThrow('Not an array')
+      expect(() => jsonld.read(0).read(0).getOrThrow()).toThrow('Not an array')
     })
   })
 
@@ -42,6 +42,23 @@ describe('read', () => {
       ).toBe('https://mastodon.social/users/juunini/outbox')
     })
   })
+
+  describe('when not given namespace, find key', () => {
+    it('should return value', async () => {
+      const jsonld = await JsonLDReader.parse(givenJSONLD)
+      expect(jsonld.read('outbox').get()).toBe('https://mastodon.social/users/juunini/outbox')
+    })
+  })
+
+  describe('when given key is preDefined key', () => {
+    it('should return value', async () => {
+      const jsonld = await JsonLDReader.parse(givenJSONLD)
+      expect(jsonld.read('@id').get()).toBe('https://mastodon.social/users/juunini')
+      expect(jsonld.read('id').get()).toBe('https://mastodon.social/users/juunini')
+      expect(jsonld.read('@type').get()).toBe('Person')
+      expect(jsonld.read('type').get()).toBe('Person')
+    })
+  })
 })
 
 describe('stringOrThrow', () => {
@@ -55,6 +72,13 @@ describe('stringOrThrow', () => {
           })
           .read('as', 'image')
           .read('as', 'url')
+          .stringOrThrow()
+      ).toBe('https://files.mastodon.social/accounts/headers/109/408/471/076/954/889/original/f4158a0d06a05763.png')
+
+      expect(
+        jsonld
+          .read('image')
+          .read('url')
           .stringOrThrow()
       ).toBe('https://files.mastodon.social/accounts/headers/109/408/471/076/954/889/original/f4158a0d06a05763.png')
     })
