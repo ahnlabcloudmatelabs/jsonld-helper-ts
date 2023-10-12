@@ -5,6 +5,10 @@ interface ReadAsObject {
   scope: Scope
   key: string
 }
+interface ReadAsArray {
+  scope: Scope[]
+  index: number
+}
 interface Read {
   jsonld: unknown
   index?: number
@@ -18,7 +22,7 @@ export function read ({
 }: Read): JsonLDReader {
   if (Array.isArray(jsonld)) {
     if (index !== undefined) {
-      return JsonLDReader.of(jsonld[index])
+      return readAsArray({ scope: jsonld, index })
     }
 
     if (jsonld.length > 2) {
@@ -49,17 +53,24 @@ export function read ({
   })
 }
 
-function readAsObject ({
-  scope,
-  key
-}: ReadAsObject): JsonLDReader {
+function readAsArray ({ scope, index }: ReadAsArray): JsonLDReader {
+  const value = scope[index]
+
+  if (value !== undefined) {
+    return JsonLDReader.of(value)
+  }
+
+  return new Nothing(new Error(`Not found index: ${index}`))
+}
+
+function readAsObject ({ scope, key }: ReadAsObject): JsonLDReader {
   const [value, isPreDefined] = readAsPreDefinedKey(scope, key)
 
   if (isPreDefined) {
     return JsonLDReader.of(value)
   }
 
-  const fullKey = Object.keys(scope).find((k) => k.split('#')[1] === key)
+  const fullKey = getFullKey(scope, key)
 
   if (fullKey === undefined) {
     return new Nothing(new Error(`Not found key: ${key}`))
@@ -68,6 +79,19 @@ function readAsObject ({
   return key === 'type'
     ? JsonLDReader.of(extractType(scope[fullKey] as string | string[]))
     : JsonLDReader.of(scope[fullKey])
+}
+
+function getFullKey (scope: Scope, key: string): string | undefined {
+  const fullKey = Object.keys(scope).find((k) => k.split('#')[1] === key)
+
+  if (fullKey !== undefined) {
+    return fullKey
+  }
+
+  return Object.keys(scope).find((k) => {
+    const split = k.split('/')
+    return split[split.length - 1] === key
+  })
 }
 
 function readAsPreDefinedKey (scope: Scope, key: string): [unknown, boolean] {
@@ -84,6 +108,14 @@ function readAsPreDefinedKey (scope: Scope, key: string): [unknown, boolean] {
 
     if (founded) {
       return [id, true]
+    }
+  }
+
+  if (['value', '@value'].includes(key)) {
+    const [value, founded] = readValue(scope)
+
+    if (founded) {
+      return [value, true]
     }
   }
 
@@ -114,6 +146,22 @@ function readId (scope: Scope): [unknown, boolean] {
   }
 
   const key = Object.keys(scope).find((k) => k.split('#')[1] === 'id')
+
+  if (key !== undefined) {
+    return [scope[key], true]
+  }
+
+  return ['', false]
+}
+
+function readValue (scope: Scope): [unknown, boolean] {
+  const value = scope['@value']
+
+  if (value !== undefined) {
+    return [value, true]
+  }
+
+  const key = Object.keys(scope).find((k) => k.split('#')[1] === 'value')
 
   if (key !== undefined) {
     return [scope[key], true]
