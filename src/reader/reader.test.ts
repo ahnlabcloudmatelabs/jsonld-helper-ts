@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test'
 
-import { JsonLDReader } from './reader'
+import { JsonLDReader } from './JsonLDReader'
 
 describe('read', () => {
   describe('when given key is not found', () => {
@@ -36,8 +36,7 @@ describe('read', () => {
       const jsonld = await JsonLDReader.parse(givenJSONLD)
       expect(
         jsonld
-          .setNamespace({ as: 'https://www.w3.org/ns/activitystreams' })
-          .read('as', 'outbox')
+          .read('outbox')
           .getOrThrow()
       ).toBe('https://mastodon.social/users/juunini/outbox')
     })
@@ -67,16 +66,6 @@ describe('stringOrThrow', () => {
       const jsonld = await JsonLDReader.parse(givenJSONLD)
       expect(
         jsonld
-          .setNamespace({
-            as: 'https://www.w3.org/ns/activitystreams'
-          })
-          .read('as', 'image')
-          .read('as', 'url')
-          .stringOrThrow()
-      ).toBe('https://files.mastodon.social/accounts/headers/109/408/471/076/954/889/original/f4158a0d06a05763.png')
-
-      expect(
-        jsonld
           .read('image')
           .read('url')
           .stringOrThrow()
@@ -89,8 +78,7 @@ describe('stringOrThrow', () => {
       const jsonld = await JsonLDReader.parse(givenJSONLD)
       expect(
         jsonld
-          .setNamespace({ as: 'https://www.w3.org/ns/activitystreams' })
-          .read('as', 'manuallyApprovesFollowers')
+          .read('manuallyApprovesFollowers')
           .stringOrThrow()
       ).toBe('false')
     })
@@ -103,8 +91,7 @@ describe('numberOrThrow', () => {
       const jsonld = await JsonLDReader.parse(givenJSONLD)
       expect(
         jsonld
-          .setNamespace({ as: 'https://www.w3.org/ns/activitystreams' })
-          .read('as', 'accuracy')
+          .read('accuracy')
           .numberOrThrow()
       ).toBe(1)
     })
@@ -124,8 +111,7 @@ describe('booleanOrThrow', () => {
       const jsonld = await JsonLDReader.parse(givenJSONLD)
       expect(
         jsonld
-          .setNamespace({ as: 'https://www.w3.org/ns/activitystreams' })
-          .read('as', 'closed')
+          .read('closed')
           .booleanOrThrow()
       ).toBe(true)
     })
@@ -162,8 +148,7 @@ describe('booleanOrElse', () => {
     const jsonld = await JsonLDReader.parse(givenJsonLD)
 
     const manuallyApprovesFollowers = jsonld
-      .setNamespace({ as: 'https://www.w3.org/ns/activitystreams' })
-      .read('as', 'manuallyApprovesFollowers')
+      .read('manuallyApprovesFollowers')
       .booleanOrElse(false)
 
     expect(manuallyApprovesFollowers).toBe(true)

@@ -1,6 +1,6 @@
 {
   "name": "@cloudmatelabs/jsonld-helper",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "JSON-LD Helper",
   "homepage": "https://github.com/cloudmatelabs/jsonld-helper-ts",
   "repository": "cloudmatelabs/jsonld-helper-ts",

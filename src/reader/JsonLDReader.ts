@@ -4,6 +4,8 @@ import {
   type JsonLdDocument
 } from 'jsonld'
 
+import { read } from './utils/read'
+
 export class JsonLDReader {
   /**
    * parsed JSON-LD value
@@ -13,17 +15,14 @@ export class JsonLDReader {
    * length of parsed JSON-LD value
    */
   public readonly length: number
-  private readonly namespace: Record<string, string>
 
   /**
    * [CAUTION] instead of using constructor, use `JsonLDReader.parse`
    *
    * @param value parsed JSON-LD value or final value
-   * @param namespace mapping contexts. e.g. `{ as: 'https://www.w3.org/ns/activitystreams' }`, when you want to use `.read('as', 'url')` as `https://www.w3.org/ns/activitystreams#url`
    */
-  constructor (value?: unknown, namespace?: Record<string, string>) {
+  constructor (value?: unknown) {
     this.value = value
-    this.namespace = namespace ?? {}
     this.length = Array.isArray(value) ? value.length : 1
   }
 
@@ -31,8 +30,8 @@ export class JsonLDReader {
    * @param value parsed JSON-LD value or final value
    * @param namespace mapping contexts. e.g. `{ as: 'https://www.w3.org/ns/activitystreams' }`, when you want to use `.read('as', 'url')` as `https://www.w3.org/ns/activitystreams#url`
    */
-  static of (value: unknown, namespace?: Record<string, string>): JsonLDReader {
-    return new JsonLDReader(value, namespace)
+  static of (value: unknown): JsonLDReader {
+    return new JsonLDReader(value)
   }
 
   /**
@@ -46,42 +45,20 @@ export class JsonLDReader {
     return JsonLDReader.of(data)
   }
 
-  /**
-   * this method not change current namespace value(no side effect). returns new JsonLDReader instance.
-   *
-   * @param namespace mapping contexts. e.g. `{ as: 'https://www.w3.org/ns/activitystreams' }`, when you want to use `.read('as', 'url')` as `https://www.w3.org/ns/activitystreams#url`
-   */
-  public setNamespace (namespace: Record<string, string>): JsonLDReader {
-    return JsonLDReader.of(this.value, namespace)
+  public strict (): JsonLDReader {
+    return JsonLDReader.of(this.value)
   }
 
   /**
-   * @param key key or index of array. if given key is `outbox` and has `https://www.w3.org/ns/activitystreams#outbox`, returns value of `https://www.w3.org/ns/activitystreams#outbox`.
+   * @param keyOrIndex
    * @returns JsonLDReader instance. if key is not found, returns `Nothing` instance.
    */
-  public read (key: string | number): JsonLDReader
-  /**
-   * @param namespace if use `setNamespace` method to set namespace, you can use namespace as first argument. if not, insert full url as first argument. e.g. `https://www.w3.org/ns/activitystreams`
-   * @param key insert key. e.g. `url`. if has value is array and length is 1, it reads first element of array automatically.
-   * @returns JsonLDReader instance. if key is not found, returns `Nothing` instance.
-   */
-  public read (namespace: string, key: string): JsonLDReader
-  public read (namespaceOrKey: string | number, key?: string): JsonLDReader {
-    return typeof namespaceOrKey === 'number'
-      ? this.readArray(namespaceOrKey)
-      : this.readObject(namespaceOrKey, key)
-  }
-
-  private preDefinedKey (key: string | number): [string | number, boolean] {
-    if (['id', '@id'].includes(key.toString())) {
-      return ['@id', true]
-    }
-
-    if (['type', '@type'].includes(key.toString())) {
-      return ['@type', true]
-    }
-
-    return [key, false]
+  public read (keyOrIndex: string | number): JsonLDReader {
+    return read({
+      jsonld: this.value,
+      index: typeof keyOrIndex === 'number' ? keyOrIndex : undefined,
+      key: typeof keyOrIndex === 'string' ? keyOrIndex : undefined
+    })
   }
 
   /**
@@ -196,98 +173,6 @@ export class JsonLDReader {
     }
   }
 
-  private readArray (key: number): JsonLDReader {
-    if (!Array.isArray(this.value)) {
-      return new Nothing(new Error('Not an array'))
-    }
-    return JsonLDReader.of(this.value[key], this.namespace)
-  }
-
-  private readObject (namespace: string, key?: string): JsonLDReader {
-    if (!this.valueIsObject()) {
-      return new Nothing(new Error('Not an object'))
-    }
-
-    const scope = this.scope() as Record<string, any>
-
-    const [preDefinedKey, isPreDefined] = this.preDefinedKey(key ?? namespace)
-
-    if (isPreDefined) {
-      const value = scope[preDefinedKey]
-
-      if (value !== undefined) {
-        return JsonLDReader.of(
-          preDefinedKey === '@type' ? this.extractType(value) : value,
-          this.namespace
-        )
-      }
-    }
-
-    const combinedKey: string | undefined = this.key(namespace, key)
-
-    if (combinedKey === undefined) {
-      return new Nothing(new Error(`Not found key: ${key ?? namespace}`))
-    }
-
-    return key === 'type'
-      ? JsonLDReader.of(this.extractType(scope[combinedKey]), this.namespace)
-      : JsonLDReader.of(scope[combinedKey], this.namespace)
-  }
-
-  private key (namespace: string, key?: string): string | undefined {
-    if (key !== undefined) {
-      return `${this.namespace[namespace] ?? namespace}#${key}`
-    }
-
-    return Object.keys(this.scope() as Record<string, string>).find((k) => k.split('#')[1] === this.unsetPreDefinedKey(namespace))
-  }
-
-  private unsetPreDefinedKey (key: string): string {
-    if (key === '@type') {
-      return 'type'
-    }
-
-    if (key === '@id') {
-      return 'id'
-    }
-
-    return key
-  }
-
-  private extractType (value: string): string {
-    if (Array.isArray(value)) {
-      return this.extractType(value[0])
-    }
-
-    const hashSplit = value.split('#')
-    if (hashSplit.length === 2) {
-      return hashSplit[1]
-    }
-
-    const slashSplit = value.split('/')
-    return slashSplit[slashSplit.length - 1]
-  }
-
-  private valueIsObject (): boolean {
-    if (Array.isArray(this.value) && this.length === 1) {
-      return true
-    }
-
-    if (Array.isArray(this.value)) {
-      return false
-    }
-
-    return typeof this.value === 'object'
-  }
-
-  private scope (): unknown {
-    if (Array.isArray(this.value) && this.length === 1) {
-      return this.value[0]
-    }
-
-    return this.value
-  }
-
   private getValue (): unknown {
     if (['string', 'number', 'bigint', 'boolean'].includes(typeof this.value)) {
       return this.value
@@ -302,7 +187,7 @@ export class JsonLDReader {
   }
 }
 
-class Nothing extends JsonLDReader {
+export class Nothing extends JsonLDReader {
   public readonly error: Error
 
   constructor (error: Error) {
