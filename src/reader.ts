@@ -232,17 +232,33 @@ export class JsonLDReader {
     const value = scope[key]
 
     if (value !== undefined) {
-      if (key === '@type') {
-        return JsonLDReader.of(this.extractType(value), this.namespace)
-      }
-      return JsonLDReader.of(value, this.namespace)
+      return key === '@type'
+        ? JsonLDReader.of(this.extractType(value), this.namespace)
+        : JsonLDReader.of(value, this.namespace)
     }
 
-    const extractedKey = Object.keys(scope).find((k) => k.split('#')[1] === key)
+    const _key = this.unsetPreDefinedKey(key)
+    const extractedKey = Object.keys(scope).find((k) => k.split('#')[1] === _key)
 
-    return extractedKey === undefined
-      ? new Nothing(new Error(`Not found key: ${key}`))
+    if (extractedKey === undefined) {
+      return new Nothing(new Error(`Not found key: ${key}`))
+    }
+
+    return key === 'type'
+      ? JsonLDReader.of(this.extractType(scope[extractedKey]), this.namespace)
       : JsonLDReader.of(scope[extractedKey], this.namespace)
+  }
+
+  private unsetPreDefinedKey (key: string): string {
+    if (key === '@type') {
+      return 'type'
+    }
+
+    if (key === '@id') {
+      return 'id'
+    }
+
+    return key
   }
 
   private extractType (value: string): string {

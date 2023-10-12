@@ -178,8 +178,8 @@ const givenJSONLD = {
     }
   ],
   accuracy: 1,
-  id: 'https://mastodon.social/users/juunini',
-  type: 'Person',
+  '@id': 'https://mastodon.social/users/juunini',
+  'as:type': 'Person',
   following: 'https://mastodon.social/users/juunini/following',
   followers: 'https://mastodon.social/users/juunini/followers',
   inbox: 'https://mastodon.social/users/juunini/inbox',
