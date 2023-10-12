@@ -46,14 +46,16 @@ export class JsonLDReader {
     return JsonLDReader.of(data)
   }
 
-  public strict (): JsonLDReader {
-    return JsonLDReader.of(this.value)
-  }
-
   /**
-   * @param keyOrIndex
+   * @param key key of parsed JSON-LD value
    * @returns JsonLDReader instance. if key is not found, returns `Nothing` instance.
    */
+  public read (key: string): JsonLDReader
+  /**
+   * @param index index of parsed JSON-LD value
+   * @returns JsonLDReader instance. if key is not found, returns `Nothing` instance.
+   */
+  public read (index: number): JsonLDReader
   public read (keyOrIndex: string | number): JsonLDReader {
     return read({
       jsonld: this.value,

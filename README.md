@@ -20,6 +20,7 @@ When receive JSON-LD,
 {
   "@context": "https://www.w3.org/ns/activitystreams",
   "name": "juunini",
+  "type": "Person",
   "id": "juunini"
 }
 ```
@@ -30,6 +31,7 @@ is equals
 {
   "@context": "https://www.w3.org/ns/activitystreams",
   "as:name": "juunini",
+  "type": "Person",
   "@id": "juunini"
 }
 ```
@@ -44,7 +46,12 @@ and it also equals
         "@value": "juunini"
       }
     ],
-    "@id": "juunini"
+    "@id": "juunini",
+    "https://www.w3.org/ns/activitystreams#type": [
+      {
+        "@value": "Person"
+      }
+    ]
   }
 ]
 ```
@@ -79,23 +86,22 @@ const jsonld = await JsonLDReader.parse({
       "manuallyApprovesFollowers": "as:manuallyApprovesFollowers"
     }
   ],
-  "as:id": "https://mastodon.social/users/juunini",
+  "@id": "https://mastodon.social/users/juunini",
   "as:type": "Person",
-  "as:url": "https://mastodon.social/@juunini",
+  "url": "https://mastodon.social/@juunini",
   "as:image": {
-    "as:type": "Image",
+    "@type": "Image",
     "as:mediaType": "image/png",
     "url": "https://files.mastodon.social/accounts/headers/109/408/471/076/954/889/original/f4158a0d06a05763.png"
   },
-  "as:manuallyApprovesFollowers": "true"
+  "manuallyApprovesFollowers": "true"
 })
 
-const imageURL = jsonld
-  .setNamespace({ as: 'https://www.w3.org/ns/activitystreams' })
-  .read('as', 'image')
-  .read('as', 'url')
-  .stringOrThrow()
-// https://files.mastodon.social/accounts/headers/109/408/471/076/954/889/original/f4158a0d06a05763.png
+const imageType = jsonld
+  .read('image')
+  .read('mediaType')
+  .stringOrElse('')
+// image/png
 
 const imageURL = jsonld
   .read('image')
@@ -103,21 +109,16 @@ const imageURL = jsonld
   .stringOrThrow()
 // https://files.mastodon.social/accounts/headers/109/408/471/076/954/889/original/f4158a0d06a05763.png
 
+const id = jsonld.read('id').get()
 const id = jsonld.read('@id').get()
 // https://mastodon.social/users/juunini
 
-const id = jsonld.read('id').get()
-// https://mastodon.social/users/juunini
-
+const type = jsonld.read('type').get()
 const type = jsonld.read('@type').get()
 // Person
 
-const type = jsonld.read('type').get()
-// Person
-
 const manuallyApprovesFollowers = jsonld
-  .setNamespace({ as: 'https://www.w3.org/ns/activitystreams' })
-  .read('as', 'manuallyApprovesFollowers')
+  .read('manuallyApprovesFollowers')
   .booleanOrElse(false)
 // true
 ```
@@ -130,8 +131,8 @@ JsonLDReader.parse (value: object | object[], options?: Options.Expand): Promise
 .value [readonly]: unknown
 .length [readonly]: number
 
-.read (key: string | number): JsonLDReader
-.read (namespace: string, key: string): JsonLDReader
+.read (key: string): JsonLDReader
+.read (index: number): JsonLDReader
 
 .get (): unknown
 .getOrThrow (error?: Error): unknown
