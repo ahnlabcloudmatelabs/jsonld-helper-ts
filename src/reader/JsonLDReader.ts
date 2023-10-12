@@ -5,6 +5,7 @@ import {
 } from 'jsonld'
 
 import { read } from './utils/read'
+import { getValue } from './utils/value'
 
 export class JsonLDReader {
   /**
@@ -67,7 +68,7 @@ export class JsonLDReader {
    * @returns parsed JSON-LD value(object or array) or final value
    */
   public get (): unknown {
-    return this.getValue()
+    return getValue(this.value)
   }
 
   /**
@@ -76,7 +77,7 @@ export class JsonLDReader {
    */
   // eslint-disable-next-line n/handle-callback-err
   public getOrThrow (error?: Error): unknown {
-    return this.getValue()
+    return getValue(this.value)
   }
 
   /**
@@ -84,14 +85,14 @@ export class JsonLDReader {
    * @returns parsed JSON-LD value(object or array) or final value
    */
   public getOrElse (defaultValue: unknown): unknown {
-    return this.getValue()
+    return getValue(this.value)
   }
 
   /**
    * @param error (optional) error when value is not found. default is `new Error('Not a string')`
    */
   public stringOrThrow (error?: Error): string {
-    const value = this.getValue()
+    const value = getValue(this.value)
 
     if (['string', 'number', 'bigint', 'boolean'].includes(typeof value)) {
       return String(value)
@@ -115,7 +116,7 @@ export class JsonLDReader {
    * @param error (optional) error when value is not found. default is `new Error('Not a number')`
    */
   public numberOrThrow (error?: Error): number {
-    const value = this.getValue()
+    const value = getValue(this.value)
     if (typeof value === 'number') {
       return value
     }
@@ -144,7 +145,7 @@ export class JsonLDReader {
    * @returns parsed boolean value. if value in `[true, false, 0, 1, '0', '1', 'true', 'false']`, returns boolean.
    */
   public booleanOrThrow (error?: Error): boolean {
-    const value = this.getValue()
+    const value = getValue(this.value)
 
     if (typeof value === 'boolean') {
       return value
@@ -171,19 +172,6 @@ export class JsonLDReader {
     } catch {
       return defaultValue
     }
-  }
-
-  private getValue (): unknown {
-    if (['string', 'number', 'bigint', 'boolean'].includes(typeof this.value)) {
-      return this.value
-    }
-
-    if ((this.value as any[])?.length === 1) {
-      const scope = (this.value as any[])[0]
-      return scope?.['@value'] ?? scope?.['@id'] ?? scope
-    }
-
-    return (this.value as any)['@value'] ?? (this.value as any)['@id'] ?? this.value
   }
 }
 
