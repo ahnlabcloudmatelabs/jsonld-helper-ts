@@ -67,29 +67,9 @@ export class JsonLDReader {
    */
   public read (namespace: string, key: string): JsonLDReader
   public read (namespaceOrKey: string | number, key?: string): JsonLDReader {
-    const _key = this.key(namespaceOrKey, key)
-
-    return typeof _key === 'number'
-      ? this.readArray(_key)
-      : this.readObject(_key)
-  }
-
-  private key (namespace: string | number, key?: string): string | number {
-    if (key === undefined) {
-      const [key, isPreDefined] = this.preDefinedKey(namespace)
-      if (isPreDefined) {
-        return key
-      }
-
-      return key
-    }
-
-    const [_key, isPreDefined] = this.preDefinedKey(key)
-    if (isPreDefined) {
-      return _key
-    }
-
-    return `${this.namespace[namespace] ?? namespace}#${_key}`
+    return typeof namespaceOrKey === 'number'
+      ? this.readArray(namespaceOrKey)
+      : this.readObject(namespaceOrKey, key)
   }
 
   private preDefinedKey (key: string | number): [string | number, boolean] {
@@ -223,30 +203,43 @@ export class JsonLDReader {
     return JsonLDReader.of(this.value[key], this.namespace)
   }
 
-  private readObject (key: string): JsonLDReader {
+  private readObject (namespace: string, key?: string): JsonLDReader {
     if (!this.valueIsObject()) {
       return new Nothing(new Error('Not an object'))
     }
 
     const scope = this.scope() as Record<string, any>
-    const value = scope[key]
 
-    if (value !== undefined) {
-      return key === '@type'
-        ? JsonLDReader.of(this.extractType(value), this.namespace)
-        : JsonLDReader.of(value, this.namespace)
+    const [preDefinedKey, isPreDefined] = this.preDefinedKey(key ?? namespace)
+
+    if (isPreDefined) {
+      const value = scope[preDefinedKey]
+
+      if (value !== undefined) {
+        return JsonLDReader.of(
+          preDefinedKey === '@type' ? this.extractType(value) : value,
+          this.namespace
+        )
+      }
     }
 
-    const _key = this.unsetPreDefinedKey(key)
-    const extractedKey = Object.keys(scope).find((k) => k.split('#')[1] === _key)
+    const combinedKey: string | undefined = this.key(namespace, key)
 
-    if (extractedKey === undefined) {
-      return new Nothing(new Error(`Not found key: ${key}`))
+    if (combinedKey === undefined) {
+      return new Nothing(new Error(`Not found key: ${key ?? namespace}`))
     }
 
     return key === 'type'
-      ? JsonLDReader.of(this.extractType(scope[extractedKey]), this.namespace)
-      : JsonLDReader.of(scope[extractedKey], this.namespace)
+      ? JsonLDReader.of(this.extractType(scope[combinedKey]), this.namespace)
+      : JsonLDReader.of(scope[combinedKey], this.namespace)
+  }
+
+  private key (namespace: string, key?: string): string | undefined {
+    if (key !== undefined) {
+      return `${this.namespace[namespace] ?? namespace}#${key}`
+    }
+
+    return Object.keys(this.scope() as Record<string, string>).find((k) => k.split('#')[1] === this.unsetPreDefinedKey(namespace))
   }
 
   private unsetPreDefinedKey (key: string): string {
